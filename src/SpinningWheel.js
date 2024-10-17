@@ -1,22 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import styled, { keyframes, css } from 'styled-components';
 import { useSpring, animated } from 'react-spring';
 
 const WheelContainer = styled.div`
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh;
   background: linear-gradient(135deg, #1e1e1e 0%, #0a0a0a 100%);
-  position: relative;
-  overflow: hidden;
+  padding: 20px;
+  color: #ffd700;
+  font-family: 'Arial', sans-serif;
+`;
+
+const Title = styled.h1`
+  font-size: 2.5rem;
+  margin-bottom: 20px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 `;
 
 const WheelWrapper = styled.div`
   position: relative;
   width: 400px;
   height: 400px;
+  margin: 20px 0;
 `;
 
 const Wheel = styled(animated.div)`
@@ -25,17 +33,7 @@ const Wheel = styled(animated.div)`
   border-radius: 50%;
   position: relative;
   overflow: hidden;
-  box-shadow: 
-    0 0 0 15px #ffd700,
-    0 0 0 30px #e6b800,
-    0 0 50px rgba(255, 215, 0, 0.7),
-    0 0 100px rgba(255, 215, 0, 0.5);
-`;
-
-const shine = keyframes`
-  0% { background-position: -100px; }
-  20% { background-position: 100px; }
-  100% { background-position: 100px; }
+  box-shadow: 0 0 0 15px #ffd700, 0 0 0 30px #e6b800, 0 0 50px rgba(255, 215, 0, 0.7);
 `;
 
 const Segment = styled.div`
@@ -52,6 +50,7 @@ const Segment = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
+  
   ${props => props.isWinner && css`
     &::after {
       content: '';
@@ -60,9 +59,8 @@ const Segment = styled.div`
       left: -100px;
       width: 200px;
       height: 200px;
-      background: linear-gradient(to right, transparent, rgba(255,255,255,0.8), transparent);
+      background: linear-gradient(to right, transparent, rgba(255,255,255,0.3), transparent);
       transform: rotate(30deg);
-      animation: ${shine} 1.5s linear infinite;
     }
   `}
 `;
@@ -74,8 +72,8 @@ const SegmentText = styled.span`
   transform: rotate(-${props => props.rotate}deg);
   color: #ffffff;
   font-weight: bold;
-  font-size: 18px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  font-size: 16px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 `;
 
 const Pointer = styled.div`
@@ -91,48 +89,42 @@ const Pointer = styled.div`
   z-index: 100;
 `;
 
+const spinButton = keyframes`
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+`;
+
 const Button = styled.button`
-  position: absolute;
-  bottom: 50px;
-  font-size: 1.5rem;
-  padding: 15px 30px;
-  background: linear-gradient(45deg, #ffd700, #ff6b6b);
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 1rem;
+  background: #ffd700;
   border: none;
-  border-radius: 50px;
+  border-radius: 5px;
   color: #1a1a1a;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-  font-family: 'Arial', sans-serif;
-  font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 2px;
+  transition: background 0.3s;
+  animation: ${spinButton} 2s infinite;
 
   &:hover {
-    transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-    background: linear-gradient(45deg, #ffe066, #ff8c8c);
-  }
-
-  &:active {
-    transform: translateY(1px) scale(0.98);
+    background: #ffed4a;
   }
 
   &:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+    animation: none;
   }
 `;
 
 const WinnerAnnouncement = styled.div`
-  position: absolute;
-  top: 50px;
-  font-size: 2rem;
-  color: #ffd700;
-  font-family: 'Arial', sans-serif;
-  font-weight: bold;
+  margin-top: 20px;
+  padding: 20px;
+  background: rgba(255, 215, 0, 0.2);
+  border: 2px solid #ffd700;
+  border-radius: 10px;
   text-align: center;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 `;
 
 const NavigationButton = styled(Link)`
@@ -152,67 +144,85 @@ const NavigationButton = styled(Link)`
   }
 `;
 
+const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f7d794', '#ff8a5c', '#7fb069', '#d88c9a', '#3c3c3c'];
+
+// Define the pointer position explicitly
+const POINTER_POSITION = 0; // 0 degrees is the top (12 o'clock) position
+
 const SpinningWheel = () => {
   const [rotation, setRotation] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState(null);
   const [names, setNames] = useState([]);
+  const [predeterminedWinner, setPredeterminedWinner] = useState(null);
 
   useEffect(() => {
     const storedNames = localStorage.getItem('wheelNames');
+    const storedWinner = localStorage.getItem('wheelWinner');
     if (storedNames) {
       setNames(JSON.parse(storedNames));
     }
+    if (storedWinner) {
+      setPredeterminedWinner(storedWinner);
+    }
   }, []);
 
-  const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f7d794', '#ff8a5c', '#7fb069', '#d88c9a', '#3c3c3c'];
+  const calculateSegmentSize = useCallback(() => {
+    return 360 / names.length;
+  }, [names]);
 
-  const spinAnimation = useSpring({
-    from: { rotate: rotation },
-    to: { rotate: isSpinning ? rotation + 2160 + Math.random() * 360 : rotation },
-    config: isSpinning 
-      ? { 
-          duration: 8000, 
-          easing: t => 
-            t === 1 ? 1 : 1 - Math.pow(2, -10 * t) // Exponential easing out
-        } 
-      : { duration: 100000 },
-    onRest: () => {
-      if (isSpinning) {
-        setIsSpinning(false);
-        const winningIndex = Math.floor(((rotation % 360) / 360) * names.length);
-        setWinner(names[winningIndex]);
-      }
-    },
-  });
+  const calculateWinningRotation = useCallback(() => {
+    const segmentSize = calculateSegmentSize();
+    if (!predeterminedWinner || !names.includes(predeterminedWinner)) {
+      // If no predetermined winner, choose a random segment
+      const randomIndex = Math.floor(Math.random() * names.length);
+      return 360 - (randomIndex * segmentSize) - POINTER_POSITION;
+    }
 
-  const spinWheel = () => {
+    const winnerIndex = names.indexOf(predeterminedWinner);
+    // Calculate the exact rotation to land on the predetermined winner
+    return 360 - (winnerIndex * segmentSize) - POINTER_POSITION;
+  }, [names, predeterminedWinner, calculateSegmentSize]);
+
+  const spinWheel = useCallback(() => {
     if (!isSpinning && names.length > 0) {
       setIsSpinning(true);
       setWinner(null);
-      setRotation(prevRotation => prevRotation + 2160 + Math.random() * 360);
+      
+      const winningRotation = calculateWinningRotation();
+      const totalRotation = 360 * 5 + winningRotation; // Spin at least 5 full rotations
+      
+      setRotation(prevRotation => prevRotation + totalRotation);
+      
+      setTimeout(() => {
+        const winnerIndex = Math.floor((360 - (winningRotation + POINTER_POSITION)) / calculateSegmentSize()) % names.length;
+        setWinner(names[winnerIndex]);
+        setIsSpinning(false);
+      }, 5000); // This should match the duration of the spin animation
     }
-  };
+  }, [isSpinning, names, calculateWinningRotation, calculateSegmentSize]);
+
+  const spinAnimation = useSpring({
+    from: { transform: `rotate(0deg)` },
+    to: { transform: `rotate(-${rotation}deg)` },
+    config: { duration: 5000, easing: t => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)) },
+  });
 
   return (
     <WheelContainer>
+      <Title>Spin the Wheel!</Title>
       <NavigationButton to="/">Edit Names</NavigationButton>
-      {winner && (
-        <WinnerAnnouncement>
-          Winner: {winner}
-        </WinnerAnnouncement>
-      )}
       <WheelWrapper>
-        <Pointer />
+        <Pointer style={{ transform: `rotate(${POINTER_POSITION}deg)` }} />
         <Wheel style={spinAnimation}>
           {names.map((name, index) => (
             <Segment 
               key={index} 
               color={colors[index % colors.length]} 
-              rotate={index * (360 / names.length)}
+              rotate={index * calculateSegmentSize()}
               isWinner={!isSpinning && winner === name}
             >
-              <SegmentText rotate={index * (360 / names.length)}>
+              <SegmentText rotate={index * calculateSegmentSize()}>
                 {name}
               </SegmentText>
             </Segment>
@@ -220,8 +230,14 @@ const SpinningWheel = () => {
         </Wheel>
       </WheelWrapper>
       <Button onClick={spinWheel} disabled={isSpinning || names.length === 0}>
-        {isSpinning ? 'Spinning...' : 'SPIN & WIN!'}
+      {isSpinning ? 'Spinning...' : 'SPIN & WIN!'}
       </Button>
+      {winner && (
+        <WinnerAnnouncement>
+          <h2>Winner!</h2>
+          <p>Congratulations to <strong>{winner}</strong>! 🎉</p>
+        </WinnerAnnouncement>
+      )}
     </WheelContainer>
   );
 };

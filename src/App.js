@@ -7,8 +7,10 @@ const App = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<NameInputPage />} />
-        <Route path="/wheel" element={<SpinningWheel />} />
+        {/* Set SpinningWheel as the homepage */}
+        <Route path="/" element={<SpinningWheel />} />
+        {/* Set NameInputPage as another route */}
+        <Route path="/name-input" element={<NameInputPage />} />
       </Routes>
     </Router>
   );

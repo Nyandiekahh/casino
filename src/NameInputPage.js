@@ -97,20 +97,44 @@ const NavigationButton = styled(Link)`
   }
 `;
 
+const SelectWinnerButton = styled.button`
+  background: ${props => props.isSelected ? '#ffd700' : '#4ecdc4'};
+  color: ${props => props.isSelected ? '#1a1a1a' : 'white'};
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  margin-right: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+
+  &:hover {
+    background: ${props => props.isSelected ? '#ffed4a' : '#45b7d1'};
+  }
+`;
+
 const NameInputPage = () => {
   const [names, setNames] = useState([]);
   const [inputName, setInputName] = useState('');
+  const [winner, setWinner] = useState(null);
 
   useEffect(() => {
     const storedNames = localStorage.getItem('wheelNames');
+    const storedWinner = localStorage.getItem('wheelWinner');
     if (storedNames) {
       setNames(JSON.parse(storedNames));
+    }
+    if (storedWinner) {
+      setWinner(storedWinner);
     }
   }, []);
 
   useEffect(() => {
     localStorage.setItem('wheelNames', JSON.stringify(names));
   }, [names]);
+
+  useEffect(() => {
+    localStorage.setItem('wheelWinner', winner);
+  }, [winner]);
 
   const addName = () => {
     if (inputName.trim() !== '') {
@@ -122,6 +146,13 @@ const NameInputPage = () => {
   const removeName = (index) => {
     const newNames = names.filter((_, i) => i !== index);
     setNames(newNames);
+    if (winner === names[index]) {
+      setWinner(null);
+    }
+  };
+
+  const toggleWinner = (name) => {
+    setWinner(winner === name ? null : name);
   };
 
   return (
@@ -140,7 +171,15 @@ const NameInputPage = () => {
         {names.map((name, index) => (
           <NameItem key={index}>
             {name}
-            <RemoveButton onClick={() => removeName(index)}>×</RemoveButton>
+            <div>
+              <SelectWinnerButton
+                onClick={() => toggleWinner(name)}
+                isSelected={winner === name}
+              >
+                {winner === name ? 'Selected Winner' : 'Select as Winner'}
+              </SelectWinnerButton>
+              <RemoveButton onClick={() => removeName(index)}>×</RemoveButton>
+            </div>
           </NameItem>
         ))}
       </NameList>
